@@ -668,6 +668,16 @@ contract DssProxyActions is Common {
         giveToProxy(proxyRegistry,manager,cdp,dst);
     }
 
+    function openAndImportFromManager(
+        address managerSrc,
+        address managerDst,
+        uint cdpSrc,
+        bytes32 ilk
+    ) public payable returns (uint cdp) {
+        cdp = open(managerDst, ilk, address(this));
+        shiftManager(managerSrc,managerDst,cdpSrc,cdp);
+    }
+
     function lockGemAndDraw(
         address manager,
         address jug,

@@ -85,6 +85,10 @@ contract ProxyCalls {
         proxy.execute(dssProxyActions, msg.data);
     }
 
+    function openAndImportFromManager(address, address, uint, bytes32) public {
+        proxy.execute(dssProxyActions, msg.data);
+    }
+
     function lockETH(address, address, uint) public payable {
         (bool success,) = address(proxy).call.value(msg.value)(abi.encodeWithSignature("execute(address,bytes)", dssProxyActions, msg.data));
         require(success, "");
@@ -718,15 +722,19 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         assertEq(ink("ETH", manager.urns(cdp)), 2 ether);
         DSProxy userProxy = registry.proxies(user);
         assertEq(manager.owns(cdp), address(userProxy));
+        assertEq(manager.cdpCan(address(userProxy),cdp,address(proxy)),0);
+        assertEq(manager.cdpCan(address(userProxy),cdp,address(this)),0);
     }
 
     function testOpenLockETHAndGiveToProxyExistingProxy() public {
         address user = address(0x123);
         registry.build(user);
-        DSProxy userProxy = registry.proxies(user);        
+        DSProxy userProxy = registry.proxies(user);
         uint cdp = DssProxyActions(dssProxyActions).openLockETHAndGiveToProxy.value(2 ether)(address(registry),address(manager),address(ethJoin),"ETH",user);
         assertEq(ink("ETH", manager.urns(cdp)), 2 ether);
         assertEq(manager.owns(cdp), address(userProxy));
+        assertEq(manager.cdpCan(address(userProxy),cdp,address(proxy)),0);
+        assertEq(manager.cdpCan(address(userProxy),cdp,address(this)),0);
     }
 
     function testLockGemAndDraw() public {
@@ -978,6 +986,22 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
             assertEq(vat.can(address(proxy), address(manager)), (i & 0x1) > 0 ? 1 : 0);
             assertEq(vat.can(address(proxy), address(manager2)), (i & 0x2) > 0 ? 1 : 0);
         }
+    }
+
+    function testOpenAndImportFromManager() public {
+        uint cdpSrc = this.open(address(manager), "ETH", address(proxy));
+        this.lockETHAndDraw.value(1 ether)(address(manager), address(jug), address(ethJoin), address(daiJoin), cdpSrc, 50 ether);
+
+        assertEq(ink("ETH", manager.urns(cdpSrc)), 1 ether);
+        assertEq(art("ETH", manager.urns(cdpSrc)), 50 ether);
+
+        this.openAndImportFromManager(address(manager),address(manager2),cdpSrc,"ETH");
+        uint cdpDst = manager2.first(address(proxy));
+
+        assertEq(ink("ETH", manager.urns(cdpSrc)), 0);
+        assertEq(art("ETH", manager.urns(cdpSrc)), 0);
+        assertEq(ink("ETH", manager2.urns(cdpDst)), 1 ether);
+        assertEq(art("ETH", manager2.urns(cdpDst)), 50 ether);
     }
 
     function _flipETH() internal returns (uint cdp) {
