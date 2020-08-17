@@ -644,6 +644,19 @@ contract DssProxyActions is Common {
         DaiJoinLike(daiJoin).exit(msg.sender, wadD);
     }
 
+    function lockETHViaCdp(
+        address manager,
+        address ethJoin,
+        uint cdp
+    ) public payable {
+        address urn = ManagerLike(manager).urns(cdp);
+
+        // Receives ETH amount, converts it to WETH and joins it into the vat
+        ethJoin_join(ethJoin, urn);
+        // Locks WETH amount into the CDP and generates debt
+        frob(manager, cdp, toInt(msg.value), 0);
+    }
+
     function openLockETHAndDraw(
         address manager,
         address jug,
@@ -664,7 +677,7 @@ contract DssProxyActions is Common {
         address dst
     ) public payable returns (uint cdp) {
         cdp = open(manager, ilk, address(this));
-        lockETH(manager,ethJoin,cdp);
+        lockETHViaCdp(manager,ethJoin,cdp);
         giveToProxy(proxyRegistry,manager,cdp,dst);
     }
 

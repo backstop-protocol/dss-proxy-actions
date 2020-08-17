@@ -94,6 +94,11 @@ contract ProxyCalls {
         require(success, "");
     }
 
+    function lockETHViaCdp(address, address, uint) public payable {
+        (bool success,) = address(proxy).call.value(msg.value)(abi.encodeWithSignature("execute(address,bytes)", dssProxyActions, msg.data));
+        require(success, "");
+    }
+
     function safeLockETH(address, address, uint, address) public payable {
         (bool success,) = address(proxy).call.value(msg.value)(abi.encodeWithSignature("execute(address,bytes)", dssProxyActions, msg.data));
         require(success, "");
@@ -432,6 +437,15 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         uint cdp = this.open(address(manager), "ETH", address(proxy));
         assertEq(ink("ETH", manager.urns(cdp)), 0);
         this.lockETH.value(2 ether)(address(manager), address(ethJoin), cdp);
+        assertEq(ink("ETH", manager.urns(cdp)), 2 ether);
+        assertEq(address(this).balance, initialBalance - 2 ether);
+    }
+
+    function testLockETHViaCdp() public {
+        uint initialBalance = address(this).balance;
+        uint cdp = this.open(address(manager), "ETH", address(proxy));
+        assertEq(ink("ETH", manager.urns(cdp)), 0);
+        this.lockETHViaCdp.value(2 ether)(address(manager), address(ethJoin), cdp);
         assertEq(ink("ETH", manager.urns(cdp)), 2 ether);
         assertEq(address(this).balance, initialBalance - 2 ether);
     }
