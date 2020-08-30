@@ -2,7 +2,7 @@ pragma solidity ^0.5.12;
 
 import "ds-test/test.sol";
 
-import "./DssProxyActions.sol";
+import "./BProxyActions.sol";
 
 import {DssDeployTestBase, Flipper} from "dss-deploy/DssDeploy.t.base.sol";
 import {DGD, GNT} from "dss-deploy/tokens.sol";
@@ -318,7 +318,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         manager2 = new DssCdpManager(address(vat));
         DSProxyFactory factory = new DSProxyFactory();
         registry = new ProxyRegistry(address(factory));
-        dssProxyActions = address(new DssProxyActions());
+        dssProxyActions = address(new BProxyActions());
         dssProxyActionsEnd = address(new DssProxyActionsEnd());
         dssProxyActionsDsr = address(new DssProxyActionsDsr());
         proxy = DSProxy(registry.build());
@@ -732,7 +732,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
 
     function testOpenLockETHAndGiveToProxyNewProxy() public {
         address user = address(0x123);
-        uint cdp = DssProxyActions(dssProxyActions).openLockETHAndGiveToProxy.value(2 ether)(address(registry),address(manager),address(ethJoin),"ETH",user);
+        uint cdp = BProxyActions(dssProxyActions).openLockETHAndGiveToProxy.value(2 ether)(address(registry),address(manager),address(ethJoin),"ETH",user);
         assertEq(ink("ETH", manager.urns(cdp)), 2 ether);
         DSProxy userProxy = registry.proxies(user);
         assertEq(manager.owns(cdp), address(userProxy));
@@ -744,7 +744,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         address user = address(0x123);
         registry.build(user);
         DSProxy userProxy = registry.proxies(user);
-        uint cdp = DssProxyActions(dssProxyActions).openLockETHAndGiveToProxy.value(2 ether)(address(registry),address(manager),address(ethJoin),"ETH",user);
+        uint cdp = BProxyActions(dssProxyActions).openLockETHAndGiveToProxy.value(2 ether)(address(registry),address(manager),address(ethJoin),"ETH",user);
         assertEq(ink("ETH", manager.urns(cdp)), 2 ether);
         assertEq(manager.owns(cdp), address(userProxy));
         assertEq(manager.cdpCan(address(userProxy),cdp,address(proxy)),0);
