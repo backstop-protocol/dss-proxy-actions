@@ -4,6 +4,10 @@ pragma solidity ^0.5.12;
 
 import "./DssProxyActions.sol";
 
+contract BManagerLike is ManagerLike {
+    function cushion(uint cdp) public returns(uint);
+}
+
 contract BProxyActions is DssProxyActions {
     function shiftManager(
         address managerSrc,
@@ -60,5 +64,50 @@ contract BProxyActions is DssProxyActions {
     ) public payable returns (uint cdp) {
         cdp = open(managerDst, ilk, address(this));
         shiftManager(managerSrc,managerDst,cdpSrc,cdp);
+    }
+
+    function beforeWipeAll(address manager, uint cdp) internal {
+        if(BManagerLike(manager).cushion(cdp) > 0) ManagerLike(manager).frob(cdp,0,0);
+    }
+
+    function wipeAll(
+        address manager,
+        address daiJoin,
+        uint cdp
+    ) public {
+        beforeWipeAll(manager, cdp);
+        super.wipeAll(manager, daiJoin, cdp);
+    }
+
+    function safeWipeAll(
+        address manager,
+        address daiJoin,
+        uint cdp,
+        address owner
+    ) public {
+        beforeWipeAll(manager, cdp);
+        super.safeWipeAll(manager, daiJoin, cdp, owner);
+    }
+
+    function wipeAllAndFreeETH(
+        address manager,
+        address ethJoin,
+        address daiJoin,
+        uint cdp,
+        uint wadC
+    ) public {
+        beforeWipeAll(manager, cdp);
+        super.wipeAllAndFreeETH(manager, ethJoin, daiJoin, cdp, wadC);
+    }
+
+    function wipeAllAndFreeGem(
+        address manager,
+        address gemJoin,
+        address daiJoin,
+        uint cdp,
+        uint amtC
+    ) public {
+        beforeWipeAll(manager, cdp);
+        super.wipeAllAndFreeGem(manager, gemJoin, daiJoin, cdp, amtC);
     }
 }
