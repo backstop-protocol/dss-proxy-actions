@@ -273,9 +273,25 @@ contract FakeUser {
     }
 }
 
+contract ExtendedDssCdpManager is DssCdpManager {
+    constructor(address vat) public DssCdpManager(vat) {}
+
+    bool public untopped = false;
+
+    function cushion(uint /*cdp*/) public pure returns(uint) {
+        return 7;
+    }
+
+    function frob(uint cdp, int ink, int dart) public {
+        if(ink == 0 && dart == 0) untopped = true;
+
+        super.frob(cdp, ink, dart);
+    }
+}
+
 contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
-    DssCdpManager manager;
-    DssCdpManager manager2;
+    ExtendedDssCdpManager manager;
+    ExtendedDssCdpManager manager2;
 
     GemJoin3 dgdJoin;
     DGD dgd;
@@ -314,8 +330,8 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         (,, spot,,) = vat.ilks("GNT");
         assertEq(spot, 100 * ONE * ONE / 1500000000 ether);
 
-        manager = new DssCdpManager(address(vat));
-        manager2 = new DssCdpManager(address(vat));
+        manager = new ExtendedDssCdpManager(address(vat));
+        manager2 = new ExtendedDssCdpManager(address(vat));
         DSProxyFactory factory = new DSProxyFactory();
         registry = new ProxyRegistry(address(factory));
         dssProxyActions = address(new BProxyActions());
@@ -617,6 +633,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         this.draw(address(manager), address(jug), address(daiJoin), cdp, 300 ether);
         dai.approve(address(proxy), 300 ether);
         this.wipeAll(address(manager), address(daiJoin), cdp);
+        assertEq(manager.untopped() ? 1 : 0, uint(1));
         assertEq(dai.balanceOf(address(this)), 0);
         assertEq(art("ETH", manager.urns(cdp)), 0);
     }
@@ -637,6 +654,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         this.draw(address(manager), address(jug), address(daiJoin), cdp, 300 ether);
         dai.approve(address(proxy), 300 ether);
         this.safeWipeAll(address(manager), address(daiJoin), cdp, address(proxy));
+        assertEq(manager.untopped() ? 1 : 0, uint(1));
         assertEq(dai.balanceOf(address(this)), 0);
         assertEq(art("ETH", manager.urns(cdp)), 0);
     }
@@ -845,6 +863,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         this.lockETHAndDraw.value(2 ether)(address(manager), address(jug), address(ethJoin), address(daiJoin), cdp, 300 ether);
         dai.approve(address(proxy), 300 ether);
         this.wipeAllAndFreeETH(address(manager), address(ethJoin), address(daiJoin), cdp, 1.5 ether);
+        assertEq(manager.untopped() ? 1 : 0, uint(1));
         assertEq(ink("ETH", manager.urns(cdp)), 0.5 ether);
         assertEq(art("ETH", manager.urns(cdp)), 0);
         assertEq(dai.balanceOf(address(this)), 0);
@@ -871,6 +890,8 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         this.lockGemAndDraw(address(manager), address(jug), address(colJoin), address(daiJoin), cdp, 2 ether, 10 ether, true);
         dai.approve(address(proxy), 10 ether);
         this.wipeAllAndFreeGem(address(manager), address(colJoin), address(daiJoin), cdp, 1.5 ether);
+        assertEq(manager.untopped() ? 1 : 0, uint(1));
+        assertEq(manager.untopped() ? 1 : 0, uint(1));
         assertEq(ink("COL", manager.urns(cdp)), 0.5 ether);
         assertEq(art("COL", manager.urns(cdp)), 0);
         assertEq(dai.balanceOf(address(this)), 0);
