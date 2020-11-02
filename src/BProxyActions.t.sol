@@ -290,6 +290,8 @@ contract ExtendedDssCdpManager is DssCdpManager {
 }
 
 contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
+    uint256 constant ONE = 10 ** 27;
+
     ExtendedDssCdpManager manager;
     ExtendedDssCdpManager manager2;
 
@@ -414,7 +416,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         uint cdp = this.open(address(manager), "ETH", address(proxy));
 
         assertEq(dai.balanceOf(address(this)), 0);
-        weth.deposit.value(1 ether)();
+        weth.mint(1 ether);
         weth.approve(address(ethJoin), uint(-1));
         ethJoin.join(manager.urns(cdp), 1 ether);
         assertEq(vat.gem("ETH", address(this)), 0);
@@ -430,7 +432,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         uint cdp = this.open(address(manager), "ETH", address(proxy));
 
         assertEq(dai.balanceOf(address(this)), 0);
-        weth.deposit.value(1 ether)();
+        weth.mint(1 ether);
         weth.approve(address(ethJoin), uint(-1));
         ethJoin.join(manager.urns(cdp), 1 ether);
 
@@ -915,7 +917,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         uint cdp = this.open(address(manager), "ETH", address(proxy));
         this.lockETHAndDraw.value(2 ether)(address(manager), address(jug), address(ethJoin), address(daiJoin), cdp, 300 ether);
 
-        weth.deposit.value(2 ether)();
+        weth.mint(2 ether);
         weth.approve(address(ethJoin), 2 ether);
         ethJoin.join(address(this), 2 ether);
         vat.frob("ETH", address(this), address(this), address(this), 1 ether, 150 ether);
@@ -952,7 +954,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
     }
 
     function testEnter() public {
-        weth.deposit.value(1 ether)();
+        weth.mint(1 ether);
         weth.approve(address(ethJoin), 1 ether);
         ethJoin.join(address(this), 1 ether);
         vat.frob("ETH", address(this), address(this), address(this), 1 ether, 50 ether);
@@ -1049,13 +1051,12 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         spotter.poke("ETH");
         uint batchId = cat.bite("ETH", manager.urns(cdp));
 
-
-        address(user1).transfer(10 ether);
-        user1.doEthJoin(address(weth), address(ethJoin), address(user1), 10 ether);
+        address(uint160(address(user1))).transfer(10 ether);
+        user1.doWethJoin(address(weth), address(ethJoin), address(user1), 10 ether);
         user1.doFrob(address(vat), "ETH", address(user1), address(user1), address(user1), 10 ether, 1000 ether);
 
-        address(user2).transfer(10 ether);
-        user2.doEthJoin(address(weth), address(ethJoin), address(user2), 10 ether);
+        address(uint160(address(user2))).transfer(10 ether);
+        user2.doWethJoin(address(weth), address(ethJoin), address(user2), 10 ether);
         user2.doFrob(address(vat), "ETH", address(user2), address(user2), address(user2), 10 ether, 1000 ether);
 
         user1.doHope(address(vat), address(ethFlip));
@@ -1088,12 +1089,12 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         spotter.poke("COL");
         uint batchId = cat.bite("COL", manager.urns(cdp));
 
-        address(user1).transfer(10 ether);
-        user1.doEthJoin(address(weth), address(ethJoin), address(user1), 10 ether);
+        address(uint160(address(user1))).transfer(10 ether);
+        user1.doWethJoin(address(weth), address(ethJoin), address(user1), 10 ether);
         user1.doFrob(address(vat), "ETH", address(user1), address(user1), address(user1), 10 ether, 1000 ether);
 
-        address(user2).transfer(10 ether);
-        user2.doEthJoin(address(weth), address(ethJoin), address(user2), 10 ether);
+        address(uint160(address(user2))).transfer(10 ether);
+        user2.doWethJoin(address(weth), address(ethJoin), address(user2), 10 ether);
         user2.doFrob(address(vat), "ETH", address(user2), address(user2), address(user2), 10 ether, 1000 ether);
 
         user1.doHope(address(vat), address(colFlip));
@@ -1121,12 +1122,12 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         spotter.poke("DGD");
         uint batchId = cat.bite("DGD", manager.urns(cdp));
 
-        address(user1).transfer(10 ether);
-        user1.doEthJoin(address(weth), address(ethJoin), address(user1), 10 ether);
+        address(uint160(address(user1))).transfer(10 ether);
+        user1.doWethJoin(address(weth), address(ethJoin), address(user1), 10 ether);
         user1.doFrob(address(vat), "ETH", address(user1), address(user1), address(user1), 10 ether, 1000 ether);
 
-        address(user2).transfer(10 ether);
-        user2.doEthJoin(address(weth), address(ethJoin), address(user2), 10 ether);
+        address(uint160(address(user2))).transfer(10 ether);
+        user2.doWethJoin(address(weth), address(ethJoin), address(user2), 10 ether);
         user2.doFrob(address(vat), "ETH", address(user2), address(user2), address(user2), 10 ether, 1000 ether);
 
         user1.doHope(address(vat), address(dgdFlip));
