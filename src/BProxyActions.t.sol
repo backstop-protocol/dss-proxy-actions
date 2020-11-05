@@ -14,6 +14,7 @@ import {DssCdpManager} from "dss-cdp-manager/DssCdpManager.sol";
 import {GetCdps} from "dss-cdp-manager/GetCdps.sol";
 import {ProxyRegistry, DSProxyFactory, DSProxy} from "proxy-registry/ProxyRegistry.sol";
 import {WETH9_} from "ds-weth/weth9.sol";
+import {BCdpManagerTestBase} from "dss-cdp-manager/BCdpManager.t.sol";
 
 contract ProxyCalls {
     DSProxy proxy;
@@ -276,8 +277,16 @@ contract FakeUser {
     }
 }
 
+contract ExtendedDssCdpManager is DssCdpManager {
+    constructor(address vat) public DssCdpManager(vat) {}
+
+    function cushion(uint /*cdp*/) public pure returns(uint) {
+        return 0;
+    }
+}
+
 contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
-    DssCdpManager manager;
+    ExtendedDssCdpManager manager;
     DssCdpManager manager2;
 
     GemJoin3 dgdJoin;
@@ -324,7 +333,7 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         (,, spot,,) = vat.ilks("GNT");
         assertEq(spot, 100 * RAY * RAY / 1500000000 ether);
 
-        manager = new DssCdpManager(address(vat));
+        manager = new ExtendedDssCdpManager(address(vat));
         manager2 = new DssCdpManager(address(vat));
         DSProxyFactory factory = new DSProxyFactory();
         registry = new ProxyRegistry(address(factory));
@@ -1291,6 +1300,105 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         this.dsr_exitAll(address(daiJoin), address(pot));
         // In this case we get 49.999 DAI back as the returned amount is based purely in the pie amount
         assertEq(dai.balanceOf(address(this)), 49999999999999999999);
+    }
+
+    function () external payable {}
+}
+
+
+contract WipeAllTest is BCdpManagerTestBase, ProxyCalls {
+    WETH9_ realWeth;
+    function setUp() public {
+        super.setUp();
+
+        // Create a real WETH token and replace it with a new adapter in the vat
+        realWeth = new WETH9_();
+        this.deny(address(vat), address(ethJoin));
+        ethJoin = new GemJoin(address(vat), "ETH", address(realWeth));
+        this.rely(address(vat), address(ethJoin));
+
+        DSProxyFactory factory = new DSProxyFactory();
+        ProxyRegistry registry = new ProxyRegistry(address(factory));
+        dssProxyActions = address(new BProxyActions());
+        dssProxyActionsEnd = address(new DssProxyActionsEnd());
+        dssProxyActionsDsr = address(new DssProxyActionsDsr());
+        proxy = DSProxy(registry.build());
+    }
+
+    function art(bytes32 ilk, address urn) public view returns (uint artV) {
+        (,artV) = vat.urns(ilk, urn);
+    }
+
+    function ink(bytes32 ilk, address urn) public view returns (uint inkV) {
+        (inkV,) = vat.urns(ilk, urn);
+    }
+
+    function reachTopup(uint cdp) internal {
+        uint liquidatorCdp = manager.open("ETH", address(this));
+        realWeth.deposit.value(1 ether)();
+        realWeth.approve(address(ethJoin), 1 ether);
+        ethJoin.join(manager.urns(liquidatorCdp), 1 ether);
+        manager.frob(liquidatorCdp, 1 ether, 51 ether);
+        manager.move(liquidatorCdp, address(this), 51 ether * RAY);
+        vat.move(address(this), address(liquidator), 51 ether * RAY);
+
+        liquidator.doDeposit(pool, 51 ether * RAY);
+
+        osm.setPrice(70 * 1e18); // 1 ETH = 50 DAI
+        (uint dart, uint dtab, uint art) = pool.topAmount(cdp);
+        art; //shh
+        assertEq(uint(dtab) / RAY, 1 ether + 3333333333333333334 /* 3.333 DAI */);
+        assertEq(uint(dart), 1 ether + 3333333333333333334 /* 3.333 DAI */);
+
+        liquidator.doTopup(pool, cdp);
+
+        assertEq(manager.cushion(cdp), uint(dart));
+    }
+
+
+    function testWipeAllInternal(bool safe) internal {
+        uint cdp = this.open(address(manager), "ETH", address(proxy));
+        this.lockETH.value(1 ether)(address(manager), address(ethJoin), cdp);
+        this.draw(address(manager), address(jug), address(daiJoin), cdp, 50 ether);
+
+        reachTopup(cdp);
+
+        uint daiBalanceBefore = dai.balanceOf(address(this));
+        dai.approve(address(proxy), 50 ether);
+        if(safe) {
+            this.safeWipeAll(address(manager), address(daiJoin), cdp, address(proxy));
+        }
+        else {
+            this.wipeAll(address(manager), address(daiJoin), cdp);
+        }
+
+        assertEq(dai.balanceOf(address(this)), daiBalanceBefore - 50 ether);
+        assertEq(art("ETH", manager.urns(cdp)), 0);
+    }
+
+    function testWipeAllAndFreeETH() public {
+        uint cdp = this.open(address(manager), "ETH", address(proxy));
+        uint initialBalance = address(this).balance;
+        this.lockETHAndDraw.value(1 ether)(address(manager), address(jug), address(ethJoin), address(daiJoin), cdp, 50 ether);
+        assertEq(address(this).balance, initialBalance - 1 ether);
+
+        reachTopup(cdp);
+
+        initialBalance = address(this).balance;
+        dai.approve(address(proxy), 50 ether);
+        this.wipeAllAndFreeETH(address(manager), address(ethJoin), address(daiJoin), cdp, 0.5 ether);
+        assertEq(ink("ETH", manager.urns(cdp)), 0.5 ether);
+        assertEq(art("ETH", manager.urns(cdp)), 0);
+        assertEq(dai.balanceOf(address(this)), 0);
+        assertEq(address(this).balance, initialBalance + 0.5 ether);
+    }
+
+    function testWipeAll() public {
+        testWipeAllInternal(false);
+    }
+
+    function testWipeAllSafe() public {
+        testWipeAllInternal(true);
     }
 
     function () external payable {}
