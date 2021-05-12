@@ -72,18 +72,15 @@ contract BProxyActions is DssProxyActions {
         giveToProxy(proxyRegistry,manager,cdp,dst);
     }
 
-    function openLockGemAndGiveToProxy(
-        address proxyRegistry,
+    function openLockGem(
         address manager,
         address gemJoin,
         bytes32 ilk,
-        address dst,
         uint    amt,
         bool    transferFrom
     ) public returns (uint cdp) {
         cdp = open(manager, ilk, address(this));
         lockGemViaCdp(manager,gemJoin,cdp,amt,transferFrom);
-        giveToProxy(proxyRegistry,manager,cdp,dst);
     }    
 
     function openAndImportFromManager(
