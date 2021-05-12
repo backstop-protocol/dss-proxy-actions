@@ -103,6 +103,11 @@ contract ProxyCalls {
         require(success, "");
     }
 
+    function lockGemViaCdp(address, address, uint, uint, bool) public payable {
+        (bool success,) = address(proxy).call.value(msg.value)(abi.encodeWithSignature("execute(address,bytes)", dssProxyActions, msg.data));
+        require(success, "");
+    }    
+
     function safeLockETH(address, address, uint, address) public payable {
         (bool success,) = address(proxy).call.value(msg.value)(abi.encodeWithSignature("execute(address,bytes)", dssProxyActions, msg.data));
         require(success, "");
@@ -469,6 +474,17 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         assertEq(address(this).balance, initialBalance - 2 ether);
     }
 
+    function testLockGemViaCdp() public {
+        col.mint(5 ether);        
+        uint initialBalance = col.balanceOf(address(this));
+        uint cdp = this.open(address(manager), "COL", address(proxy));
+        assertEq(ink("COL", manager.urns(cdp)), 0);
+        col.approve(address(proxy), 2 ether);
+        this.lockGemViaCdp(address(manager), address(colJoin), cdp, 2 ether, true);
+        assertEq(ink("COL", manager.urns(cdp)), 2 ether);
+        assertEq(col.balanceOf(address(this)), initialBalance - 2 ether);
+    }    
+
     function testSafeLockETH() public {
         uint initialBalance = address(this).balance;
         uint cdp = this.open(address(manager), "ETH", address(proxy));
@@ -769,6 +785,31 @@ contract DssProxyActionsTest is DssDeployTestBase, ProxyCalls {
         assertEq(manager.cdpCan(address(userProxy),cdp,address(proxy)),0);
         assertEq(manager.cdpCan(address(userProxy),cdp,address(this)),0);
     }
+
+    function testOpenLockGemAndGiveToProxyNewProxy() public {
+        address user = address(0x123);
+        col.mint(5 ether);
+        col.approve(address(dssProxyActions), 2 ether);
+        uint cdp = BProxyActions(dssProxyActions).openLockGemAndGiveToProxy(address(registry),address(manager),address(colJoin),"COL",user,2 ether,true);
+        assertEq(ink("COL", manager.urns(cdp)), 2 ether);
+        DSProxy userProxy = registry.proxies(user);
+        assertEq(manager.owns(cdp), address(userProxy));
+        assertEq(manager.cdpCan(address(userProxy),cdp,address(proxy)),0);
+        assertEq(manager.cdpCan(address(userProxy),cdp,address(this)),0);
+    }
+
+    function testOpenLockGemAndGiveToProxyExistingProxy() public {
+        address user = address(0x123);
+        col.mint(5 ether);
+        col.approve(address(dssProxyActions), 2 ether);        
+        registry.build(user);
+        DSProxy userProxy = registry.proxies(user);
+        uint cdp = BProxyActions(dssProxyActions).openLockGemAndGiveToProxy(address(registry),address(manager),address(colJoin),"COL",user,2 ether,true);
+        assertEq(ink("COL", manager.urns(cdp)), 2 ether);
+        assertEq(manager.owns(cdp), address(userProxy));
+        assertEq(manager.cdpCan(address(userProxy),cdp,address(proxy)),0);
+        assertEq(manager.cdpCan(address(userProxy),cdp,address(this)),0);
+    }    
 
     function testLockGemAndDraw() public {
         col.mint(5 ether);

@@ -44,6 +44,22 @@ contract BProxyActions is DssProxyActions {
         frob(manager, cdp, toInt(msg.value), 0);
     }
 
+    function lockGemViaCdp(
+        address manager,
+        address gemJoin,
+        uint cdp,
+        uint amt,
+        bool transferFrom
+    ) public {
+        address urn = ManagerLike(manager).urns(cdp);
+
+        // Receives Gem and joins it into the vat        
+        gemJoin_join(gemJoin, urn, amt, transferFrom);
+
+        // Locks WETH amount into the CDP and generates debt
+        frob(manager, cdp, toInt(convertTo18(gemJoin, amt)), 0);
+    }    
+
     function openLockETHAndGiveToProxy(
         address proxyRegistry,
         address manager,
@@ -55,6 +71,20 @@ contract BProxyActions is DssProxyActions {
         lockETHViaCdp(manager,ethJoin,cdp);
         giveToProxy(proxyRegistry,manager,cdp,dst);
     }
+
+    function openLockGemAndGiveToProxy(
+        address proxyRegistry,
+        address manager,
+        address gemJoin,
+        bytes32 ilk,
+        address dst,
+        uint    amt,
+        bool    transferFrom
+    ) public returns (uint cdp) {
+        cdp = open(manager, ilk, address(this));
+        lockGemViaCdp(manager,gemJoin,cdp,amt,transferFrom);
+        giveToProxy(proxyRegistry,manager,cdp,dst);
+    }    
 
     function openAndImportFromManager(
         address managerSrc,
